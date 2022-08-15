@@ -1,0 +1,64 @@
+## install library
+install.packages(c("tidyverse", "caret", "mlbench", "rpart", "ranger", "randomForest"))
+library(tidyverse)
+library(caret)
+library(mlbench)
+library(dplyr)
+
+
+## import data
+datac <- read.csv("China_largest_companies.csv")
+datac <- tibble(datac)
+
+## change column name
+colnames(datac) <- c("global_rank","company_name","sales","profit","assets","market_v")
+
+## finding correlation between each column
+datac %>%
+  select(sales,profit,assets,market_v) %>%
+  cor()
+
+## test pearson's correlation to check significant ( P <= 0.05)
+cor.test(datac$profit,datac$sales)
+
+
+## Build full model
+
+lmfull_data <- lm(profit ~ sales , data = datac)
+
+## predict profit by sales =100 billion
+profit_100 <- lmfull_data$coefficients[[1]]+lmfull_data$coefficients[[2]]*100 
+
+
+## predict all data
+datac$pred_profit  <- predict(lmfull_data)
+head(datac)
+
+## train RMSE full data
+## check error between real_value and predict_value
+squared_error <- (datac$profit -datac$pred_profit)^2
+rmse <- sqrt(mean(squared_error))
+
+## Build model by split data
+## Split data
+set.seed(50)
+n <- nrow(datac)
+id <- sample(1:n, size = n*0.6)
+##subset row id and all column in datac
+train_data <- datac[id, ]
+## -id mean delete id data from id in datac because we already use it
+test_data <- datac[-id,] 
+
+## train model profit = f(sales)
+model_train <- lm(profit ~ sales , data = train_data)
+p_train <- predict(model_train)
+error_train <- train_data$profit - p_train
+rmse_train <- sqrt(mean(error_train^2))
+
+## Test Model
+p_test <- predict(model_train, newdata = test_data)
+error_test <- test_data$profit - p_test
+rmse_test <- sqrt(mean(error_test^2))
+
+## print Result
+cat("RMSE Train:",rmse_train,"\nRMSE Test:",rmse_test) 
