@@ -1,0 +1,91 @@
+## Logistic regression
+## import data
+## predict sex of penguins from bill_length,bill_depth,flipper_length and body_mass
+
+datap <- read.csv("penguins.CSV")
+
+## Tibble data ,cleaning NA value in any data point and convert sex to binary integer
+datap <- datap %>%
+  tibble() %>%
+  na.omit()%>% 
+  mutate(sex = ifelse(datap$sex == "male",1,0)) 
+glimpse(datap)
+table(datap$sex)
+
+## Split data
+set.seed(50)
+n_glm <- nrow(datap)
+id_glm <- sample(1:n_glm, size = n_glm*0.8)
+##subset row id_glm and all column in datap
+train_data_glm <- datap[id_glm, ]
+## -id_glm mean delete id data from id_glm in datap because we already use it
+test_data_glm <- datap[-id_glm, ] 
+
+## train model
+logis_model <- glm( sex ~ . -species -island -year ,
+                    data =  train_data_glm,
+                    family = "binomial")
+p_train_logis <- predict(logis_model, type = "response")## probability
+
+
+
+## check accuracy of train model
+train_data_glm$pred <- if_else(p_train_logis >= 0.5,1,0)
+check_acc_train <- train_data_glm$sex == train_data_glm$pred
+acc_train <- mean(check_acc_train)
+
+## Test Model
+
+p_test_logis <- predict(logis_model, 
+                        newdata = test_data_glm,
+                        type = "response")
+
+##check accuracy of train model
+test_data_glm$pred <- if_else(p_test_logis >= 0.5,1,0)
+check_acc_test <- test_data_glm$sex == test_data_glm$pred
+acc_test <- mean(check_acc_test)
+
+## print accuracy both of train and test
+cat("acc_train:", acc_train,"\nacc_test:",acc_test)
+
+
+##confusion matrix to finding F1- score(mean of precision and recall)
+
+confm <- table(test_data_glm$sex, test_data_glm$pred,
+               dnn = c("Actual","Predicted"))
+
+## Model Evaluation
+
+confm[1, 1]  ## actual=0,predicted=0
+confm[1, 2]  ## actual=0,predicted=1
+confm[2, 1]  ## actual=1,predicted=0
+confm[2, 2]  ## actual=1,predicted=1
+
+
+##accuracy 0.8507
+
+cat("Accuracy:", (confm[1, 1]+confm[2, 2])/ sum(confm))
+
+
+##precision 0.90909
+
+cat("Precision:", confm[1, 1]/(confm[1, 1]+confm[1, 2]))
+
+
+##recall 0.8108
+
+cat("Recall:", confm[1, 1] / (confm[1, 1] + confm[2, 1]))
+
+
+##F1 = 2*((precision*recall)/(precision+recall)) = 0.85709
+
+cat("F1:", 2*((0.909*0.8108) / (0.909+0.8108)))
+
+## convert sex and pred column in test_data_glm to >>factor<< if not change, confusion metric function can not run
+test_data_glm$pred <- as.factor(test_data_glm$pred)
+test_data_glm$sex <- as.factor(test_data_glm$sex)
+
+## model evaluation by confusionmatrix
+## call confusion metric function from caret to re-check F1
+confusionMatrix(test_data_glm$sex, test_data_glm$pred ,  mode = "prec_recall") ##it is correct ! 
+
